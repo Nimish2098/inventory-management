@@ -14,6 +14,7 @@ public class ProductMapper {
         product.setName(request.name());
         product.setCategory(request.category());
         product.setReorderLevel(request.reorder_level());
+        product.setLeadTimeDays(request.lead_time_days());
         return product;
     }
 
@@ -22,6 +23,7 @@ public class ProductMapper {
         product.setName(request.name());
         product.setCategory(request.category());
         product.setReorderLevel(request.reorder_level());
+        product.setLeadTimeDays(request.lead_time_days());
     }
 
     public ProductResponse toResponse(Product product) {
@@ -30,7 +32,8 @@ public class ProductMapper {
                 product.getSku(),
                 product.getName(),
                 product.getCategory(),
-                product.getReorderLevel()
+                product.getReorderLevel(),
+                product.getLeadTimeDays()
         );
     }
 }

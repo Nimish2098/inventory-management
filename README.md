@@ -19,6 +19,8 @@ The long-term vision is to evolve ApexStock from a traditional CRUD application 
 ### Current Features
 
 - **Product and inventory management:** Create, retrieve, update, and delete inventory records through REST APIs.
+- **Demand-based reorder recommendations:** Calculate daily demand, safety stock, reorder points, days of cover, and suggested order quantities per product and warehouse from outbound stock movements. Configure the demand window, service level, default lead time, cover days, minimum demand days, and time zone with `apexstock.reorder.*`; products may override the default with `lead_time_days`.
+- **Reorder API:** Authenticated clients can query `GET /api/stock/reorder-recommendations` with optional `warehouseId` and `status` filters, or request actionable alerts from `/api/stock/reorder-recommendations/alerts`.
 - **JWT-based authentication:** Secure authentication using Spring Security and JSON Web Tokens.
 - **RESTful backend:** Structured API endpoints for communication between the frontend and backend.
 - **Persistent storage:** PostgreSQL database for application data.
@@ -28,18 +30,17 @@ The long-term vision is to evolve ApexStock from a traditional CRUD application 
 
 ### AI-Powered Inventory Intelligence — Roadmap
 
-The following capabilities are planned to extend ApexStock beyond traditional inventory management.
+The following enhancements are planned to extend ApexStock beyond its current inventory and reorder features.
 
-#### 1. Dynamic Reorder Thresholds
+#### 1. Advanced Reorder Forecasting
 
-Replace static reorder levels with demand-driven replenishment recommendations.
+The current reorder recommendations use a rolling demand window and a normal-distribution safety-stock estimate. Future improvements can account for seasonal demand, supplier lead-time variability, and configurable product-specific service levels.
 
 **Planned capabilities:**
-- Analyze historical demand over a rolling 30-day window.
-- Calculate average daily demand and demand variability.
-- Estimate safety stock using a configurable service-level target.
-- Incorporate supplier lead times into reorder calculations.
-- Identify products that need replenishment and explain why.
+- Compare forecast methods against historical outcomes.
+- Incorporate seasonal and trend changes in demand.
+- Track actual supplier lead-time variability.
+- Tune service-level targets by product or category.
 
 **Reorder point formula:**
 
@@ -55,7 +56,7 @@ Where:
 - \(Z\): Service-level factor.
 - \(\sigma_d\): Standard deviation of daily demand.
 
-The objective is to reduce stockouts while avoiding excessive safety stock and unnecessary capital tied up in inventory.
+The existing recommendations require at least the configured minimum number of demand days. Stock movements recorded before timestamp tracking was introduced have no reliable event date and are excluded from demand-window calculations.
 
 #### 2. Multi-Warehouse FEFO Optimization
 
@@ -103,7 +104,7 @@ The language model will interpret requests and coordinate tools; inventory rules
 | Backend hosting | Render |
 | Planned AI integration | Spring AI, LLM tool calling |
 | Planned real-time updates | WebSocket |
-| Planned optimization | Demand forecasting, safety-stock calculation, FEFO transfer recommendations |
+| Inventory optimization | Demand-based reorder recommendations; FEFO transfer recommendations planned |
 
 ## Architecture
 

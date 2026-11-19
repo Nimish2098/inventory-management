@@ -3,6 +3,8 @@ package com.miyuki.Inventory.Management.stock.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.Instant;
+
 @Entity
 @Table(name = "stock_movement")
 @Getter
@@ -23,4 +25,14 @@ public class StockMovement {
 
     @Enumerated(EnumType.STRING)
     private StockMovementType type;
+
+    @Column(name = "created_at", updatable = false)
+    private Instant createdAt;
+
+    @PrePersist
+    void setCreatedAtIfMissing() {
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+    }
 }

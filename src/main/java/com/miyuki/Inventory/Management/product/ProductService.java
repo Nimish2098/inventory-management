@@ -30,7 +30,7 @@ public class ProductService{
 
    public ProductResponse createProduct(CreateProductRequest request){
 
-       validate(request.sku(), request.name(), request.reorder_level());
+       validate(request.sku(), request.name(), request.reorder_level(), request.lead_time_days());
        if(productRepository.existsBySkuAndOwner_Id(request.sku(), currentUser.id())){
            throw new IllegalStateException("Product SKU already exists");
        }
@@ -42,7 +42,7 @@ public class ProductService{
 
 
    public ProductResponse updateProduct(Long productId, UpdateProductRequest request){
-       validate(request.sku(), request.name(), request.reorder_level());
+       validate(request.sku(), request.name(), request.reorder_level(), request.lead_time_days());
        Product product = getEntity(productId);
        productRepository.findBySkuAndOwner_Id(request.sku(), currentUser.id())
                .filter(existing -> !existing.getId().equals(productId))
@@ -68,12 +68,15 @@ public class ProductService{
                .orElseThrow(() -> new ResourceNotFoundException("Product " + productId + " not found"));
    }
 
-   private void validate(String sku, String name, Long reorderLevel) {
+   private void validate(String sku, String name, Long reorderLevel, Integer leadTimeDays) {
        if (sku == null || sku.isBlank() || name == null || name.isBlank()) {
            throw new IllegalArgumentException("SKU and name are required");
        }
        if (reorderLevel == null || reorderLevel < 0) {
            throw new IllegalArgumentException("Reorder level must be zero or greater");
+       }
+       if (leadTimeDays != null && leadTimeDays <= 0) {
+           throw new IllegalArgumentException("Lead time must be greater than zero");
        }
    }
 }

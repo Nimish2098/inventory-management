@@ -33,7 +33,9 @@ class DemandSeeder implements CommandLineRunner
   @Override
   public void run(String... args) {
     boolean alreadySeeded = movements.findAll().stream()
-                                     .anyMatch(m -> m.getCreatedAt().isBefore(Instant.now().minus(2, ChronoUnit.DAYS)));
+                                     .anyMatch(m -> m.getCreatedAt() != null
+                                                    && m.getCreatedAt().isBefore(
+                                                        Instant.now().minus(2, ChronoUnit.DAYS)));
     if (alreadySeeded) return;
 
     Random rnd = new Random(42);

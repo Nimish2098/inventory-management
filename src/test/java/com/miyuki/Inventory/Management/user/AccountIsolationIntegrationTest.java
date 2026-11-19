@@ -5,6 +5,7 @@ import com.miyuki.Inventory.Management.customer.CustomerRepository;
 import com.miyuki.Inventory.Management.order.OrderRepository;
 import com.miyuki.Inventory.Management.stock.repository.InventoryitemRepository;
 import com.miyuki.Inventory.Management.stock.repository.StockMovementRepository;
+import com.miyuki.Inventory.Management.stock.model.StockMovementType;
 import com.miyuki.Inventory.Management.warehouses.WarehouseRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Instant;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -107,9 +109,10 @@ class AccountIsolationIntegrationTest {
                 "POST",
                 "/product",
                 "{\"sku\":\"SKU-" + unique + "\",\"name\":\"Private product\","
-                        + "\"category\":\"Test\",\"reorder_level\":2}",
+                        + "\"category\":\"Test\",\"reorder_level\":2,\"lead_time_days\":4}",
                 jsonString(firstUser, "accessToken"));
         assertEquals(201, createResponse.statusCode());
+        assertTrue(createResponse.body().contains("\"lead_time_days\":4"));
         productId = Long.valueOf(jsonNumber(createResponse.body(), "id"));
 
         HttpResponse<String> warehouseResponse = send(
@@ -161,6 +164,17 @@ class AccountIsolationIntegrationTest {
                 firstToken);
         assertEquals(201, orderResponse.statusCode());
         orderId = Long.valueOf(jsonNumber(orderResponse.body(), "id"));
+
+        Instant from = Instant.parse("2000-01-01T00:00:00Z");
+        Instant to = Instant.parse("2100-01-01T00:00:00Z");
+        var demand = movementRepository.findDemand(
+                firstUserId, StockMovementType.OUTBOUND, from, to);
+        assertEquals(1, demand.size());
+        assertEquals(-1L, demand.get(0).quantityChange());
+        assertNotNull(demand.get(0).createdAt());
+        assertTrue(movementRepository.findDemand(
+                secondUserId, StockMovementType.OUTBOUND, from, to).isEmpty());
+
         assertEquals("[]", send("GET", "/order", null, jsonString(secondUser, "accessToken"))
                 .body().trim());
         assertEquals(404, send(
@@ -180,20 +194,24 @@ class AccountIsolationIntegrationTest {
 
     @Test
     void corsPreflightAllowsFrontendLoginRequests() throws Exception {
-        HttpRequest request = HttpRequest.newBuilder(URI.create(url("/auth/login")))
-                .header("Origin", "http://127.0.0.1:5173")
-                .header("Access-Control-Request-Method", "POST")
-                .header("Access-Control-Request-Headers", "content-type")
-                .method("OPTIONS", HttpRequest.BodyPublishers.noBody())
-                .build();
+        for (String origin : new String[] {
+                "http://127.0.0.1:5173",
+                "https://apex-stock.netlify.app"
+        }) {
+            HttpRequest request = HttpRequest.newBuilder(URI.create(url("/auth/login")))
+                    .header("Origin", origin)
+                    .header("Access-Control-Request-Method", "POST")
+                    .header("Access-Control-Request-Headers", "content-type")
+                    .method("OPTIONS", HttpRequest.BodyPublishers.noBody())
+                    .build();
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-        assertEquals(200, response.statusCode());
-        assertEquals("http://127.0.0.1:5173", response.headers().firstValue("Access-Control-Allow-Origin")
-                .orElse(null));
-        assertTrue(response.headers().firstValue("Access-Control-Allow-Methods")
-                .orElse("").contains("POST"));
+            assertEquals(200, response.statusCode());
+            assertEquals(origin, response.headers().firstValue("Access-Control-Allow-Origin").orElse(null));
+            assertTrue(response.headers().firstValue("Access-Control-Allow-Methods")
+                    .orElse("").contains("POST"));
+        }
     }
 
     private String register(String email) throws Exception {

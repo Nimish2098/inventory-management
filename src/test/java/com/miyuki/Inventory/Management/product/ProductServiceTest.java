@@ -59,7 +59,7 @@ class ProductServiceTest {
     mockCurrentUser();
     CreateProductRequest request =
         new CreateProductRequest(
-            "SKU-001", "Laptop", "Electronics", 10L
+            "SKU-001", "Laptop", "Electronics", 10L, null
         );
 
     Product product = Product.builder()
@@ -81,7 +81,7 @@ class ProductServiceTest {
 
     when(productMapper.toResponse(product))
         .thenReturn(new ProductResponse(
-            100L, "SKU-001", "Laptop", "Electronics", 10L
+            100L, "SKU-001", "Laptop", "Electronics", 10L, null
         ));
 
     ProductResponse response = productService.createProduct(request);
@@ -99,7 +99,7 @@ class ProductServiceTest {
     mockCurrentUser();
     CreateProductRequest request =
         new CreateProductRequest(
-            "SKU-001", "Laptop", "Electronics", 10L
+            "SKU-001", "Laptop", "Electronics", 10L, null
         );
 
     when(productRepository.existsBySkuAndOwner_Id(
@@ -118,7 +118,22 @@ class ProductServiceTest {
   void createProduct_shouldRejectInvalidReorderLevel() {
     CreateProductRequest request =
         new CreateProductRequest(
-            "SKU-001", "Laptop", "Electronics", -1L
+            "SKU-001", "Laptop", "Electronics", -1L, null
+        );
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> productService.createProduct(request)
+    );
+
+    verify(productRepository, never()).save(any());
+  }
+
+  @Test
+  void createProduct_shouldRejectNonPositiveLeadTime() {
+    CreateProductRequest request =
+        new CreateProductRequest(
+            "SKU-001", "Laptop", "Electronics", 10L, 0
         );
 
     assertThrows(
@@ -135,7 +150,7 @@ class ProductServiceTest {
     UpdateProductRequest request =
         new UpdateProductRequest(
             "SKU-002", "Updated Laptop",
-            "Electronics", 20L
+            "Electronics", 20L, null
         );
 
     Product product = Product.builder()
@@ -168,7 +183,7 @@ class ProductServiceTest {
     when(productMapper.toResponse(product))
         .thenReturn(new ProductResponse(
             100L, "SKU-002", "Updated Laptop",
-            "Electronics", 20L
+            "Electronics", 20L, null
         ));
 
     ProductResponse response =
@@ -185,7 +200,7 @@ class ProductServiceTest {
     mockCurrentUser();
     UpdateProductRequest request =
         new UpdateProductRequest(
-            "SKU-002", "Laptop", "Electronics", 10L
+            "SKU-002", "Laptop", "Electronics", 10L, null
         );
 
     Product product = Product.builder()
@@ -226,7 +241,7 @@ class ProductServiceTest {
 
     when(productMapper.toResponse(product))
         .thenReturn(new ProductResponse(
-            100L, "SKU-001", "Laptop", "Electronics", 10L
+            100L, "SKU-001", "Laptop", "Electronics", 10L, null
         ));
 
     ProductResponse response = productService.getProduct(100L);
@@ -265,7 +280,7 @@ class ProductServiceTest {
 
     when(productMapper.toResponse(product))
         .thenReturn(new ProductResponse(
-            100L, "SKU-001", "Laptop", "Electronics", 10L
+            100L, "SKU-001", "Laptop", "Electronics", 10L, null
         ));
 
     List<ProductResponse> response = productService.getProducts();

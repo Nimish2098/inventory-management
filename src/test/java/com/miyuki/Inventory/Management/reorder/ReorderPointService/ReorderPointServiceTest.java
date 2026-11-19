@@ -50,7 +50,7 @@ class ReorderPointServiceTest {
     Product p = mock(Product.class);
     when(p.getId()).thenReturn(id);
     when(p.getName()).thenReturn(name);
-    when(p.getLeadTimeDays()).thenReturn(7);
+    when(p.getLeadTimeDays()).thenReturn(null);
     Warehouse w = mock(Warehouse.class);
     when(w.getId()).thenReturn(id);
     when(w.getName()).thenReturn("WH-" + id);
@@ -96,11 +96,28 @@ class ReorderPointServiceTest {
     assertEquals(List.of("B", "C", "A", "D"),
                  result.stream().map(ReorderRecommendation::productName).toList());
     assertEquals(ReorderStatus.CRITICAL, result.get(0).status());
+    assertEquals(7, result.get(0).leadTimeDays());
     assertEquals(2.0, result.get(0).daysOfCover(), 0.001);
     assertEquals(ReorderStatus.OK, result.get(2).status());
     assertEquals(ReorderStatus.NO_DATA, result.get(3).status());
     assertNull(result.get(3).daysOfCover());
   }
+
+  @Test
+  void usesProductLeadTimeWhenConfigured() {
+    InventoryItem inventoryItem = item(2, "B", 10);
+    when(inventoryItem.getProduct().getLeadTimeDays()).thenReturn(14);
+    when(currentUser.id()).thenReturn(OWNER);
+    when(items.findAllByOwnerId(OWNER)).thenReturn(List.of(inventoryItem));
+    when(movements.findDemand(eq(OWNER), eq(StockMovementType.OUTBOUND), any(), any()))
+        .thenReturn(steadyDemand(2));
+
+    ReorderRecommendation recommendation = service.calculate(null, null).get(0);
+
+    assertEquals(14, recommendation.leadTimeDays());
+    assertEquals(70, recommendation.reorderPoint());
+  }
+
   @Test
   void queriesExactlyTheLast30CompleteDaysForTheCurrentOwner() {
     when(currentUser.id()).thenReturn(OWNER);

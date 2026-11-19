@@ -23,6 +23,9 @@ public class Product{
     private String category;
     private Long reorderLevel;
 
+    @Column(name = "lead_time_days")
+    private Integer leadTimeDays;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id")
     private UserAccount owner;

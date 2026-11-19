@@ -4,6 +4,7 @@ public record UpdateProductRequest(
         String sku,
         String name,
         String category,
-        Long reorder_level
+        Long reorder_level,
+        Integer lead_time_days
 ) {
 }

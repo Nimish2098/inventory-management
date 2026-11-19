@@ -225,6 +225,25 @@ public class ProductCsvImportService {
           );
         }
 
+        Integer leadTimeDays = null;
+        if (record.isMapped("lead_time_days")) {
+          String leadTimeValue = record.get("lead_time_days").trim();
+          if (!leadTimeValue.isEmpty()) {
+            try {
+              leadTimeDays = Integer.valueOf(leadTimeValue);
+            } catch (NumberFormatException ex) {
+              throw new IllegalArgumentException(
+                  "Lead time must be a valid integer"
+              );
+            }
+            if (leadTimeDays <= 0) {
+              throw new IllegalArgumentException(
+                  "Lead time must be greater than zero"
+              );
+            }
+          }
+        }
+
         if (!seenSkus.add(sku)) {
           throw new IllegalArgumentException(
               "Duplicate SKU in CSV: " + sku
@@ -237,7 +256,8 @@ public class ProductCsvImportService {
             sku,
             name,
             category,
-            reorderLevel
+            reorderLevel,
+            leadTimeDays
         ));
 
       } catch (IllegalArgumentException ex) {
@@ -280,7 +300,8 @@ public class ProductCsvImportService {
               parsed.sku(),
               parsed.name(),
               parsed.category(),
-              parsed.reorderLevel()
+              parsed.reorderLevel(),
+              parsed.leadTimeDays()
           )
       );
 
@@ -323,6 +344,7 @@ public class ProductCsvImportService {
       String sku,
       String name,
       String category,
-      Long reorderLevel
+      Long reorderLevel,
+      Integer leadTimeDays
   ) {}
 }
