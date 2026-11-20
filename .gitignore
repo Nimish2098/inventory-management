@@ -40,5 +40,3 @@ business.md
 .env.*
 !.env.example
 Test-Data
-
-application-dev.yaml

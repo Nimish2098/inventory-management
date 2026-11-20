@@ -3,6 +3,7 @@ package com.miyuki.Inventory.Management.user;
 import com.miyuki.Inventory.Management.product.ProductRepository;
 import com.miyuki.Inventory.Management.customer.CustomerRepository;
 import com.miyuki.Inventory.Management.order.OrderRepository;
+import com.miyuki.Inventory.Management.test.PostgresIntegrationTest;
 import com.miyuki.Inventory.Management.stock.repository.InventoryitemRepository;
 import com.miyuki.Inventory.Management.stock.repository.StockMovementRepository;
 import com.miyuki.Inventory.Management.stock.model.StockMovementType;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -29,7 +31,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "app.security.jwt-secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=")
-class AccountIsolationIntegrationTest {
+@ActiveProfiles("test")
+class AccountIsolationIntegrationTest extends PostgresIntegrationTest {
 
     @LocalServerPort
     private int port;

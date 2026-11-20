@@ -1,6 +1,7 @@
 package com.miyuki.Inventory.Management.warehouses;
 
 
+import jakarta.validation.Valid;
 import com.miyuki.Inventory.Management.common.exception.ResourceNotFoundException;
 import com.miyuki.Inventory.Management.user.CurrentUser;
 import com.miyuki.Inventory.Management.user.UserAccountRepository;
@@ -41,7 +42,7 @@ public class WarehouseController {
     }
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public WarehouseResponse createWarehouse(@RequestBody CreateWarehouseRequest request){
+    public WarehouseResponse createWarehouse(@Valid @RequestBody CreateWarehouseRequest request){
         return warehouseService.createWarehouse(request);
     }
 
@@ -51,7 +52,10 @@ public class WarehouseController {
     }
 
     @PutMapping("/{id}")
-    public WarehouseResponse updateWarehouse(@PathVariable Long id,@RequestBody UpdateWarehouseRequest request){
+    public WarehouseResponse updateWarehouse(
+        @PathVariable Long id,
+        @Valid @RequestBody UpdateWarehouseRequest request
+    ){
         return warehouseService.updateWarehouse(id,request);
     }
 

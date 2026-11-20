@@ -5,6 +5,8 @@ import com.miyuki.Inventory.Management.user.UserAccount;
 import com.miyuki.Inventory.Management.user.UserAccountRepository;
 import com.miyuki.Inventory.Management.warehouses.WarehouseRepository;
 import com.miyuki.Inventory.Management.warehouses.dto.WarehouseResponse;
+import com.miyuki.Inventory.Management.warehouses.dto.CreateWarehouseRequest;
+import com.miyuki.Inventory.Management.warehouses.dto.UpdateWarehouseRequest;
 import com.miyuki.Inventory.Management.warehouses.WarehouseService;
 import com.miyuki.Inventory.Management.warehouses.WarehouseMapper;
 import com.miyuki.Inventory.Management.warehouses.Warehouse;
@@ -170,6 +172,34 @@ class WarehouseServiceTest {
     );
 
     verify(warehouseRepository, never()).saveAll(any());
+  }
+
+  @Test
+  void createWarehouse_zeroCapacity_throwsExceptionBeforeSaving() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> warehouseService.createWarehouse(
+            new CreateWarehouseRequest("WH-00001", "Mumbai Warehouse", 0))
+    );
+
+    verifyNoInteractions(
+        warehouseRepository,
+        warehouseMapper,
+        currentUser,
+        userRepository
+    );
+  }
+
+  @Test
+  void updateWarehouse_zeroCapacity_throwsExceptionBeforeLoadingWarehouse() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> warehouseService.updateWarehouse(
+            1L,
+            new UpdateWarehouseRequest("WH-00001", "Mumbai Warehouse", 0, true))
+    );
+
+    verifyNoInteractions(warehouseRepository, warehouseMapper, currentUser);
   }
 
   @Test

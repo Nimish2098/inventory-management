@@ -88,8 +88,8 @@ public class WarehouseService {
         if (code == null || code.isBlank() || name == null || name.isBlank()) {
             throw new IllegalArgumentException("Warehouse code and name are required");
         }
-        if (capacity == null || capacity < 0) {
-            throw new IllegalArgumentException("Capacity must be zero or greater");
+        if (capacity == null || capacity < 1) {
+            throw new IllegalArgumentException("Capacity must be at least 1");
         }
     }
 

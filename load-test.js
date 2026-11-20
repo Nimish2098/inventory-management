@@ -1,6 +1,8 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 
+const baseUrl = (__ENV.BASE_URL || 'http://localhost:8080').replace(/\/+$/, '');
+
 export const options = {
     stages: [
         { duration: '10s', target: 100 },
@@ -10,32 +12,50 @@ export const options = {
         { duration: '10s', target: 0 },
     ],
     thresholds: {
-        http_req_failed: ['rate<0.01'], // Expect less than 1% failure rate
+        http_req_failed: ['rate<0.01'],
         http_req_duration: ['p(95)<500'],
     },
 };
 
-export default function () {
-    // 1. Ensure this URL matches your controller mapping (e.g., http://localhost:8080/inventory)
-    const url = 'http://localhost:8080/warehouse';
+export function setup() {
+    const email = __ENV.LOAD_TEST_EMAIL;
+    const password = __ENV.LOAD_TEST_PASSWORD;
 
-    // 2. Pass a freshly generated, valid JWT token here
-    const params = {
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJpbnZlbnRvcnktbWFuYWdlbWVudCIsInN1YiI6IjEiLCJleHAiOjE3OTI5MTAxNTYsImlhdCI6MTc5MjkwNjU1NiwiZW1haWwiOiJuaW1pc2hAZ21haWwuY29tIiwicm9sZXMiOlsiUk9MRV9VU0VSIl19.V7zNjsrQDM1RE3_xMDuxwhUQjIMVRic_F4iH5br0vvE', // Replace with a fresh token
-        },
-    };
-
-    const res = http.get(url, params);
-
-    // 3. Debug any failures directly in console if they occur
-    if (res.status !== 200) {
-        console.log(`Failed with status ${res.status}: ${res.body}`);
+    if (!email || !password) {
+        throw new Error('Set LOAD_TEST_EMAIL and LOAD_TEST_PASSWORD for a dedicated test account');
     }
 
-    check(res, {
-        'status is 200': (r) => r.status === 200,
+    const loginResponse = http.post(
+        `${baseUrl}/auth/login`,
+        JSON.stringify({ email, password }),
+        { headers: { 'Content-Type': 'application/json' } }
+    );
+
+    if (loginResponse.status !== 200) {
+        throw new Error(`Load-test login failed with HTTP ${loginResponse.status}`);
+    }
+
+    const accessToken = loginResponse.json('accessToken');
+    if (typeof accessToken !== 'string' || accessToken.length === 0) {
+        throw new Error('Load-test login response did not contain an access token');
+    }
+
+    return { accessToken };
+}
+
+export default function ({ accessToken }) {
+    const response = http.get(`${baseUrl}/warehouse`, {
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+        },
+    });
+
+    if (response.status !== 200) {
+        console.log(`Warehouse request failed with HTTP ${response.status}`);
+    }
+
+    check(response, {
+        'warehouse request status is 200': (result) => result.status === 200,
     });
 
     sleep(1);

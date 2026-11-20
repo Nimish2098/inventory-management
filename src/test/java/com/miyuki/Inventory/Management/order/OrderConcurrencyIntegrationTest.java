@@ -1,5 +1,6 @@
 package com.miyuki.Inventory.Management.order;
 
+import com.miyuki.Inventory.Management.test.PostgresIntegrationTest;
 import com.miyuki.Inventory.Management.common.exception.InsufficientStockException;
 import com.miyuki.Inventory.Management.customer.Customer;
 import com.miyuki.Inventory.Management.customer.CustomerRepository;
@@ -22,6 +23,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,8 +36,9 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+@ActiveProfiles("test")
 @SpringBootTest(properties = "app.security.jwt-secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=")
-class OrderConcurrencyIntegrationTest {
+class OrderConcurrencyIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     private OrderService orderService;
