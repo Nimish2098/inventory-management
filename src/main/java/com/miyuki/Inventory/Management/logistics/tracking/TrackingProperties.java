@@ -36,4 +36,7 @@ public class TrackingProperties {
 
     /** How long a vehicle's latest position stays in Redis without new pings. */
     private Duration cacheTtl = Duration.ofHours(24);
+
+    /** Phase 4: Redis pub/sub channel on which every new "latest position" is announced to all instances. */
+    private String liveChannel = "tracking:live";
 }

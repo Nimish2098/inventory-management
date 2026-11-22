@@ -16,6 +16,8 @@ import org.springframework.stereotype.Component;
 /**
  * Latest position per vehicle in Redis, so dashboards never touch Postgres.
  * The update runs as one Lua script, which makes "only keep the newest ping" atomic even with several writers.
+ * Phase 4: the same script PUBLISHes the new position on the live channel, so a ping is announced if and only if it
+ * became the latest one (a late, older ping is never broadcast).
  */
 @Component
 public class PositionCache {
@@ -32,6 +34,7 @@ public class PositionCache {
             redis.call('GEOADD', KEYS[2], ARGV[3], ARGV[2], ARGV[6])
             redis.call('SADD', KEYS[3], ARGV[6])
             redis.call('EXPIRE', KEYS[1], tonumber(ARGV[7]))
+            redis.call('PUBLISH', ARGV[8], ARGV[9])
             return 1
             """;
     private static final DefaultRedisScript<Long> UPDATE_SCRIPT = new DefaultRedisScript<>(LUA, Long.class);
@@ -46,7 +49,7 @@ public class PositionCache {
         this.props = props;
     }
 
-    /** @return true if this ping became the vehicle's latest position, false if a newer one was already stored */
+    /** @return true if this ping became the vehicle's latest position (and was announced), false if a newer one exists */
     public boolean update(PositionRow r) {
         Long result = redis.execute(
                 UPDATE_SCRIPT,
@@ -57,7 +60,9 @@ public class PositionCache {
                 r.speedKmh() == null ? "" : String.valueOf(r.speedKmh()),
                 r.heading() == null ? "" : String.valueOf(r.heading()),
                 String.valueOf(r.vehicleId()),
-                String.valueOf(props.getCacheTtl().toSeconds()));
+                String.valueOf(props.getCacheTtl().toSeconds()),
+                props.getLiveChannel(),
+                LivePositionCodec.encode(r));
         return Long.valueOf(1L).equals(result);
     }
 
