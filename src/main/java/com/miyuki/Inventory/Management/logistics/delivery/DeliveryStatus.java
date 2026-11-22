@@ -12,7 +12,6 @@ public enum DeliveryStatus {
     DELIVERED,
     FAILED,
     RETURNED,
-    RESCHEDULED,
     CANCELLED;
 
     public Set<DeliveryStatus> allowedNextStatuses() {
@@ -22,8 +21,8 @@ public enum DeliveryStatus {
             case PICKED_UP -> EnumSet.of(IN_TRANSIT, FAILED);
             case IN_TRANSIT -> EnumSet.of(ARRIVED, FAILED);
             case ARRIVED -> EnumSet.of(DELIVERED, FAILED);
-            case FAILED -> EnumSet.of(RETURNED, RESCHEDULED);
-            case DELIVERED, RETURNED, RESCHEDULED, CANCELLED -> EnumSet.noneOf(DeliveryStatus.class);
+            case FAILED -> EnumSet.of(RETURNED);
+            case DELIVERED, RETURNED, CANCELLED -> EnumSet.noneOf(DeliveryStatus.class);
         };
     }
 

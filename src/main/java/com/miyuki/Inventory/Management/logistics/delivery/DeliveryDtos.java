@@ -59,10 +59,22 @@ public final class DeliveryDtos {
     }
 
     public record DeliveryEventResponse(
-            Long id, DeliveryStatus fromStatus, DeliveryStatus toStatus, String actor, String reason, Instant at) {
+            Long id,
+            DeliveryStatus fromStatus,
+            DeliveryStatus toStatus,
+            DeliveryAction action,
+            String actor,
+            String reason,
+            Instant at) {
         public static DeliveryEventResponse from(DeliveryEvent e) {
             return new DeliveryEventResponse(
-                    e.getId(), e.getFromStatus(), e.getToStatus(), e.getActor(), e.getReason(), e.getCreatedAt());
+                    e.getId(),
+                    e.getFromStatus(),
+                    e.getToStatus(),
+                    e.getAction(),
+                    e.getActor(),
+                    e.getReason(),
+                    e.getCreatedAt());
         }
     }
 }

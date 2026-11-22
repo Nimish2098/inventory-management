@@ -7,4 +7,6 @@ public interface DeliveryEventRepository extends JpaRepository<DeliveryEvent, Lo
     List<DeliveryEvent> findByDeliveryIdOrderByCreatedAtAscIdAsc(Long deliveryId);
 
     void deleteByDeliveryId(Long deliveryId);
+
+    boolean existsByDeliveryIdAndIdempotencyKey(Long deliveryId, String idempotencyKey);
 }

@@ -30,23 +30,45 @@ public class DeliveryEvent {
     @Column(name = "to_status", nullable = false, length = 20)
     private DeliveryStatus toStatus;
 
+    /** The action that caused the change; null for the initial CREATED event. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private DeliveryAction action;
+
     @Column(nullable = false, length = 100)
     private String actor;
 
     @Column(length = 255)
     private String reason;
 
+    /** Client-supplied Idempotency-Key, unique per delivery. */
+    @Column(name = "idempotency_key", length = 100)
+    private String idempotencyKey;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
     public static DeliveryEvent of(
             Delivery delivery, DeliveryStatus from, DeliveryStatus to, String actor, String reason) {
+        return of(delivery, from, to, null, actor, reason, null);
+    }
+
+    public static DeliveryEvent of(
+            Delivery delivery,
+            DeliveryStatus from,
+            DeliveryStatus to,
+            DeliveryAction action,
+            String actor,
+            String reason,
+            String idempotencyKey) {
         DeliveryEvent e = new DeliveryEvent();
         e.setDelivery(delivery);
         e.setFromStatus(from);
         e.setToStatus(to);
+        e.setAction(action);
         e.setActor(actor);
         e.setReason(reason);
+        e.setIdempotencyKey(idempotencyKey);
         return e;
     }
 }

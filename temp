@@ -1,0 +1,35 @@
+BASE=http://localhost:8080
+TOKEN="Bz8pJxYuUpDpujjGvByd5V4uTteoOpuYu4LxRkOs7XW"
+H=(-H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json")
+post() { curl -s "${H[@]}" -X POST "$BASE$1" -d "$2"; }
+act()  { curl -s "${H[@]}" -H "Idempotency-Key: $(cat /proc/sys/kernel/random/uuid)" \
+              -X POST "$BASE/api/deliveries/$1/transitions" -d "$2" | jq -c '{id,status}'; }
+
+# 1) Drivers
+DR1=$(post /api/drivers '{"fullName":"Ravi Kumar","phone":"9876543210","licenseNumber":"KA-DL-2020-0001"}' | jq -r .id)
+DR2=$(post /api/drivers '{"fullName":"Anita Sharma","phone":"+919812345678","licenseNumber":"KA-DL-2021-0002"}' | jq -r .id)
+
+# 2) Vehicles (V3 is in MAINTENANCE and has no driver)
+V1=$(post /api/vehicles "{\"plate\":\"KA01AB1234\",\"capacityKg\":1500,\"capacityM3\":12.5,\"driverId\":$DR1}" | jq -r .id)
+V2=$(post /api/vehicles "{\"plate\":\"KA05CD5678\",\"capacityKg\":800,\"capacityM3\":6,\"driverId\":$DR2}" | jq -r .id)
+V3=$(post /api/vehicles '{"plate":"KA03EF9012","capacityKg":2500,"capacityM3":20,"status":"MAINTENANCE"}' | jq -r .id)
+
+# 3) Deliveries around Bengaluru (orderId is just a number unless you added an FK to your orders table)
+mk() { post /api/deliveries "{\"orderId\":$1,\"destinationLat\":$2,\"destinationLng\":$3,\"destinationAddress\":\"$4\",
+  \"windowStart\":\"2026-11-23T04:30:00Z\",\"windowEnd\":\"2026-11-23T08:30:00Z\",\"weightKg\":$5,\"volumeM3\":$6}" | jq -r .id; }
+D1=$(mk 1001 12.9756 77.6068 "MG Road"        120 1.5)
+D2=$(mk 1002 12.9784 77.6408 "Indiranagar"     45 0.6)
+D3=$(mk 1003 12.9352 77.6245 "Koramangala"    300 3.0)
+D4=$(mk 1004 12.9698 77.7500 "Whitefield"      80 1.0)
+D5=$(mk 1005 12.9250 77.5938 "Jayanagar"       60 0.8)
+D6=$(mk 1006 12.9116 77.6474 "HSR Layout"     200 2.2)
+
+# 4) A route for vehicle 1: its deliveries become ASSIGNED
+post /api/routes "{\"vehicleId\":$V1,\"plannedStart\":\"2026-11-23T04:00:00Z\",\"deliveryIds\":[$D1,$D2,$D3]}" | jq -c '{id,status}'
+
+# 5) Move D1 to DELIVERED and D2 to FAILED so you see different statuses and timelines
+for a in PICK_UP START_TRANSIT ARRIVE DELIVER; do act $D1 "{\"action\":\"$a\"}"; done
+for a in PICK_UP START_TRANSIT ARRIVE; do act $D2 "{\"action\":\"$a\"}"; done
+act $D2 '{"action":"FAIL","reason":"Customer not available"}'
+
+echo "drivers $DR1 $DR2 | vehicles $V1 $V2 $V3 | deliveries $D1..$D6"

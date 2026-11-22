@@ -1,9 +1,14 @@
 package com.miyuki.Inventory.Management.logistics.route;
 
+import com.miyuki.Inventory.Management.logistics.common.Actors;
 import com.miyuki.Inventory.Management.logistics.common.BadRequestException;
-import com.miyuki.Inventory.Management.logistics.common.ConflictException;import com.miyuki.Inventory.Management.logistics.common.NotFoundException;
+import com.miyuki.Inventory.Management.logistics.common.ConflictException;
+import com.miyuki.Inventory.Management.logistics.common.NotFoundException;
 import com.miyuki.Inventory.Management.logistics.delivery.Delivery;
+import com.miyuki.Inventory.Management.logistics.delivery.DeliveryAction;
 import com.miyuki.Inventory.Management.logistics.delivery.DeliveryRepository;
+import com.miyuki.Inventory.Management.logistics.delivery.DeliveryStatus;
+import com.miyuki.Inventory.Management.logistics.delivery.DeliveryTransitionService;
 import com.miyuki.Inventory.Management.logistics.fleet.Vehicle;
 import com.miyuki.Inventory.Management.logistics.fleet.VehicleRepository;
 import com.miyuki.Inventory.Management.logistics.fleet.VehicleStatus;
@@ -26,6 +31,7 @@ public class RouteService {
     private final RouteRepository routes;
     private final VehicleRepository vehicles;
     private final DeliveryRepository deliveries;
+    private final DeliveryTransitionService transitions;
 
     public RouteResponse create(RouteRequest req) {
         Vehicle vehicle = vehicles.findById(req.vehicleId())
@@ -57,9 +63,21 @@ public class RouteService {
             if (d == null) {
                 throw new NotFoundException("Delivery", id);
             }
+            if (d.getStatus() != DeliveryStatus.CREATED) {
+                throw new ConflictException(
+                        "Delivery " + id + " is " + d.getStatus() + " and cannot be added to a route");
+            }
             route.addStop(d, sequence++);
         }
-        return RouteResponse.from(routes.save(route));
+        Route saved = routes.save(route);
+
+        // Phase 2: putting a delivery on a route moves it CREATED -> ASSIGNED (validated + audited).
+        String actor = Actors.current();
+        for (RouteStop stop : saved.getStops()) {
+            transitions.apply(
+                    stop.getDelivery(), DeliveryAction.ASSIGN, actor, "assigned to route " + saved.getId(), null);
+        }
+        return RouteResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -80,6 +98,15 @@ public class RouteService {
             throw new ConflictException("Route " + id + " is already " + route.getStatus());
         }
         route.setStatus(RouteStatus.CANCELLED);
+
+        // Deliveries not picked up yet go back to CREATED so they can be planned again.
+        String actor = Actors.current();
+        for (RouteStop stop : route.getStops()) {
+            Delivery d = stop.getDelivery();
+            if (d.getStatus() == DeliveryStatus.ASSIGNED) {
+                transitions.apply(d, DeliveryAction.UNASSIGN, actor, "route " + id + " cancelled", null);
+            }
+        }
         return RouteResponse.from(route);
     }
 

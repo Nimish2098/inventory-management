@@ -5,14 +5,22 @@ import static com.miyuki.Inventory.Management.logistics.TestData.vehicle;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.miyuki.Inventory.Management.logistics.common.BadRequestException;
-import com.miyuki.Inventory.Management.logistics.common.ConflictException;import com.miyuki.Inventory.Management.logistics.common.NotFoundException;
+import com.miyuki.Inventory.Management.logistics.common.ConflictException;
+import com.miyuki.Inventory.Management.logistics.common.NotFoundException;
 import com.miyuki.Inventory.Management.logistics.delivery.Delivery;
+import com.miyuki.Inventory.Management.logistics.delivery.DeliveryAction;
 import com.miyuki.Inventory.Management.logistics.delivery.DeliveryRepository;
+import com.miyuki.Inventory.Management.logistics.delivery.DeliveryStatus;
+import com.miyuki.Inventory.Management.logistics.delivery.DeliveryTransitionService;
 import com.miyuki.Inventory.Management.logistics.fleet.Vehicle;
 import com.miyuki.Inventory.Management.logistics.fleet.VehicleRepository;
 import com.miyuki.Inventory.Management.logistics.fleet.VehicleStatus;
@@ -33,6 +41,7 @@ class RouteServiceTest {
     @Mock RouteRepository routes;
     @Mock VehicleRepository vehicles;
     @Mock DeliveryRepository deliveries;
+    @Mock DeliveryTransitionService transitions;
     @InjectMocks RouteService service;
 
     Vehicle truck;
@@ -48,6 +57,8 @@ class RouteServiceTest {
         d.setId(id);
         return d;
     }
+
+    // ---------- Phase 1 rules ----------
 
     @Test
     void rejectsSecondOpenRouteForSameVehicle() {
@@ -123,6 +134,7 @@ class RouteServiceTest {
         when(routes.findWithStopsById(5L)).thenReturn(Optional.of(done));
 
         assertThatThrownBy(() -> service.cancel(5L)).isInstanceOf(ConflictException.class);
+        verifyNoInteractions(transitions);
     }
 
     @Test
@@ -133,5 +145,58 @@ class RouteServiceTest {
         when(routes.findWithStopsById(5L)).thenReturn(Optional.of(open));
 
         assertThat(service.cancel(5L).status()).isEqualTo(RouteStatus.CANCELLED);
+    }
+
+    // ---------- Phase 2: route <-> delivery status ----------
+
+    @Test
+    void creatingARouteAssignsEveryDelivery() {
+        Delivery d10 = deliveryWithId(10L);
+        Delivery d20 = deliveryWithId(20L);
+        when(vehicles.findById(1L)).thenReturn(Optional.of(truck));
+        when(routes.existsByVehicleIdAndStatusIn(1L, RouteStatus.OPEN)).thenReturn(false);
+        when(deliveries.findAllById(List.of(10L, 20L))).thenReturn(List.of(d10, d20));
+        when(routes.save(any(Route.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.create(new RouteRequest(1L, null, List.of(10L, 20L)));
+
+        verify(transitions).apply(eq(d10), eq(DeliveryAction.ASSIGN), anyString(), anyString(), isNull());
+        verify(transitions).apply(eq(d20), eq(DeliveryAction.ASSIGN), anyString(), anyString(), isNull());
+    }
+
+    @Test
+    void deliveryThatIsNotCreatedCannotJoinARoute() {
+        Delivery busy = deliveryWithId(10L);
+        busy.setStatus(DeliveryStatus.IN_TRANSIT);
+        when(vehicles.findById(1L)).thenReturn(Optional.of(truck));
+        when(routes.existsByVehicleIdAndStatusIn(1L, RouteStatus.OPEN)).thenReturn(false);
+        when(deliveries.findAllById(List.of(10L))).thenReturn(List.of(busy));
+
+        assertThatThrownBy(() -> service.create(new RouteRequest(1L, null, List.of(10L))))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("IN_TRANSIT");
+        verify(routes, never()).save(any());
+        verifyNoInteractions(transitions);
+    }
+
+    @Test
+    void cancellingARouteUnassignsOnlyDeliveriesNotYetPickedUp() {
+        Delivery waiting = deliveryWithId(10L);
+        waiting.setStatus(DeliveryStatus.ASSIGNED);
+        Delivery onTheRoad = deliveryWithId(20L);
+        onTheRoad.setStatus(DeliveryStatus.IN_TRANSIT);
+
+        Route route = new Route();
+        route.setVehicle(truck);
+        route.setStatus(RouteStatus.ACTIVE);
+        route.addStop(waiting, 1);
+        route.addStop(onTheRoad, 2);
+        when(routes.findWithStopsById(5L)).thenReturn(Optional.of(route));
+
+        RouteResponse response = service.cancel(5L);
+
+        assertThat(response.status()).isEqualTo(RouteStatus.CANCELLED);
+        verify(transitions).apply(eq(waiting), eq(DeliveryAction.UNASSIGN), anyString(), anyString(), isNull());
+        verify(transitions, never()).apply(eq(onTheRoad), any(), anyString(), anyString(), any());
     }
 }
